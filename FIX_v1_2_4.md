@@ -1,0 +1,1 @@
+Fixes Jinja2 TemplateSyntaxError: Missing end of comment tag, caused by CSS `){#partInspector` at line 13. Updates visible version to v1.2.4. Copy app.py and templates/index.html into the directory the GitHub workflow actually builds. Preserve your data folder.

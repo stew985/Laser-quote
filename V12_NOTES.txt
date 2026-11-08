@@ -1,0 +1,1 @@
+v1.2: Click any part filename in the batch results to open DXF drawing, geometry, nesting allocated sheet area, and line-item quote breakdown. Recalculate after changes. Existing data folder remains compatible.
