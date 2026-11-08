@@ -1,0 +1,14 @@
+Nova Laser Quote v1.0 - 12 kW conservative parameter seed
+
+On first launch with your existing data folder, previously unverified/default material thickness profiles are seeded with conservative 12 kW published-reference speeds, estimated pierce times and theoretical nozzle gas consumption for cylinder gases. Verified/custom profiles with a non-placeholder source are preserved.
+
+The 3.175 mm 304 stainless Big Graph 10 m/min speed is from your BodorThinker screenshot, but the assist gas is contradictory in the screenshots and must be verified.
+
+Published speed references:
+https://www.senfenglasers.com/knowledge/12kw-fiber-laser-cutting-parameters.html
+https://alphacnc.com.au/wp-content/uploads/2024/05/Fiber-Laser-Cutter-Brochure-SwiftX-3015HS.pdf
+https://sbmlaser.com/our-services/cutting-parameters/
+
+Gas flow is an engineering estimate (choked-flow nozzle, Cd=0.65), not actual cylinder consumption. Air cost remains zero. Profiles thicker than available reference data are marked unsupported and blocked from quoting until manually verified. Material costs remain $0.90 steel, $3.50 aluminum, $5 stainless per lb.
+
+Back up your data folder before upgrading. Do not use estimates to program the laser.

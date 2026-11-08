@@ -1,0 +1,13 @@
+Nova Laser Quote v0.5
+
+Batch quote costing now includes automatic per-DXF programming time, per-part removal, first-article inspection, per-sheet loading/unloading, setup per material/thickness/gas group, and cylinder gas consumption.
+
+The batch table has blank override boxes for programming, removal and inspection; leave blank for automatic estimates, or enter zero or another number of minutes.
+
+Rates & materials: set nitrogen and oxygen cylinder usable capacity, refill cost, and optional allocated rental/delivery per m3. For each material/thickness cutting profile set gas to air, nitrogen or oxygen, and set gas_flow_m3_hour to a measured value. AIR defaults to zero gas cost. No separate electricity cost.
+
+Existing SQLite data is compatible: missing settings and profile fields receive defaults at load time. Back up your data directory before updating. Keep old quotes in the data folder.
+
+IMPORTANT: The original single-part quote panel still uses legacy v0.4 costing; use the batch quote workflow for the new v0.5 costing. Prices remain estimates until rates, flow and cutting speeds are calibrated. Sheet count is an area/utilization estimate, not optimized nesting. Machine rate and labour rate must be set without double counting.
+
+Start: run start_windows.bat, then open http://localhost:8081.
