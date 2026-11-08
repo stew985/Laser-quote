@@ -1,5 +1,5 @@
 """Nova Laser Quote: shop-network quoting application. All prices in CAD."""
-import io, json, math, os, sqlite3, uuid, zipfile, re, email, sys
+import io, json, math, os, sqlite3, uuid, zipfile, re, email
 from email import policy
 from email.parser import BytesParser
 from datetime import datetime
@@ -17,9 +17,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from xml.sax.saxutils import escape
 
-ROOT=Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
-APP_HOME=Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
-DATA=Path(os.environ.get('NOVA_DATA_DIR', str(APP_HOME/'data')))
+ROOT=Path(__file__).resolve().parent
+DATA=Path(os.environ.get('NOVA_DATA_DIR', str(ROOT/'data')))
 DATA.mkdir(parents=True,exist_ok=True)
 UPLOADS=DATA/'uploads'; UPLOADS.mkdir(exist_ok=True)
 DB=DATA/'quotes.sqlite3'
