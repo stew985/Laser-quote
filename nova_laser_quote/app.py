@@ -1,5 +1,5 @@
 """Nova Laser Quote: shop-network quoting application. All prices in CAD."""
-import io, json, math, os, sqlite3, uuid, zipfile, re, email
+import io, json, math, os, sqlite3, uuid, zipfile, re, email, sys
 from email import policy
 from email.parser import BytesParser
 from datetime import datetime
@@ -17,12 +17,15 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from xml.sax.saxutils import escape
 
+# Bundled HTML lives inside the PyInstaller application.
 ROOT=Path(__file__).resolve().parent
-DATA=Path(os.environ.get('NOVA_DATA_DIR', str(ROOT/'data')))
+# Quote database stays beside the executable, so it survives app restarts.
+RUNTIME_ROOT=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else ROOT
+DATA=Path(os.environ.get('NOVA_DATA_DIR', str(RUNTIME_ROOT/'data')))
 DATA.mkdir(parents=True,exist_ok=True)
 UPLOADS=DATA/'uploads'; UPLOADS.mkdir(exist_ok=True)
 DB=DATA/'quotes.sqlite3'
-app=Flask(__name__)
+app=Flask(__name__, template_folder=str(ROOT/'templates'))
 app.config['MAX_CONTENT_LENGTH']=50*1024*1024
 app.json.sort_keys=False
 
@@ -335,13 +338,20 @@ def geometry(file_path):
  paths=''.join(f'<line x1="{a[0]-minx:.3f}" y1="{maxy-a[1]:.3f}" x2="{b[0]-minx:.3f}" y2="{maxy-b[1]:.3f}"/>' for a,b in segments)
  svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-sw*.04:.3f} {-sh*.04:.3f} {sw*1.08:.3f} {sh*1.08:.3f}" preserveAspectRatio="xMidYMid meet"><g fill="none" stroke="#38bdf8" stroke-width="{stroke:.3f}">{paths}</g></svg>'
  warnings=[]
+ # Detect unmatched endpoints even if some other contours are closed.
+ degrees={}
+ for a,b in segments:
+  ka=(round(a[0]/0.15),round(a[1]/0.15));kb=(round(b[0]/0.15),round(b[1]/0.15))
+  degrees[ka]=degrees.get(ka,0)+1;degrees[kb]=degrees.get(kb,0)+1
+ open_ends=sum(v%2 for v in degrees.values())
+ if open_ends:warnings.append(f'Possible open geometry: {open_ends} unmatched endpoints (0.15 mm tolerance).')
  if not polys:warnings.append('No closed contours detected; material area uses bounding rectangle.')
  if unsupported:warnings.append('Some unsupported DXF entities were ignored: '+', '.join(unsupported))
  if unit==0:warnings.append('DXF units unspecified; assumed millimetres. Verify dimensions.')
  warnings.append('Pierces are estimated from disconnected toolpaths, not CAM lead-ins.')
  return {'width_mm':round(w,3),'height_mm':round(h,3),'cut_length_mm':round(length,2),
          'pierces':pierces,'net_area_mm2':round(area,2),'bounding_area_mm2':round(w*h,2),
-         'closed_contours':len(polys),'warnings':warnings,'svg':svg}
+         'closed_contours':len(polys),'open_endpoints':open_ends,'warnings':warnings,'svg':svg}
 
 # Quoting nest: actual closed DXF contours, polygon collision, rotations, and bounded search.
 # Not a CAM nest; no lead-ins, heat distortion, common-line cutting, or machine program.
@@ -605,7 +615,7 @@ def batch_compute(lines,s):
   if not re.fullmatch('[0-9a-f]{32}',fid):raise ValueError('Invalid DXF reference')
   path=UPLOADS/(fid+'.dxf')
   if not path.is_file():raise ValueError('DXF no longer available. Reimport the RFQ.')
-  g=geometry(path);g.pop('svg',None)
+  g=geometry(path)
   material=line['material'];th=str(line['thickness_mm']);qty=int(line['quantity'])
   if material not in s['materials']:raise ValueError('Unknown material: '+str(material))
   mat=s['materials'][material]
@@ -625,7 +635,9 @@ def batch_compute(lines,s):
  grouped={}
  for i,x in enumerate(out):
   key=(x['material'],x['thickness_mm'])
-  grouped.setdefault(key,[]).append((i,solid_outline(UPLOADS/(x['file_id']+'.dxf')),x['quantity']))
+  try: shape=solid_outline(UPLOADS/(x['file_id']+'.dxf'))
+  except Exception as exc:raise ValueError(f"{x['filename']}: {exc}") from exc
+  grouped.setdefault(key,[]).append((i,shape,x['quantity']))
  sheets_by_group={};nest_previews=[];sheets=0
  sheet_w=float(s['sheet_width_mm']);sheet_h=float(s['sheet_height_mm'])
  spacing=float(s.get('nest_spacing_mm',3.175));margin=float(s.get('nest_margin_mm',6.35))
@@ -639,6 +651,8 @@ def batch_compute(lines,s):
    allocated=result['allocated_area_mm2'][i]
    cost=allocated/1e6*(float(x['thickness_mm'])/1000)*float(mat['density'])*float(profile['cost_per_lb'])*2.2046226218
    cost*=1+float(mat.get('material_markup_pct',0))/100
+   x['nest_allocated_area_mm2']=round(allocated,2)
+   x['nest_actual_outline_area_mm2']=round(shape.area*qty,2)
    x['material_cost']=cost
    x['extended_cost']=cost+x['machine_cost']+x['gas_cost']+x['labor_cost']
  sum_cost=sum(x['extended_cost'] for x in out)
@@ -654,6 +668,8 @@ def batch_compute(lines,s):
   if i==len(out)-1:allocation=remaining
   else:remaining=round(remaining-allocation,2)
   x['line_total']=allocation;x['unit_price']=round(allocation/x['quantity'],4)
+  x['shared_cost_allocation']=round(shared_cost*x['extended_cost']/sum_cost,2) if sum_cost else round(shared_cost/len(out),2)
+  x['estimated_markup_and_minimum_allocation']=round(allocation-x['extended_cost']-x['shared_cost_allocation'],2)
   for k in ('material_cost','machine_cost','gas_cost','labor_cost'):x[k]=round(x[k],2)
  return {'lines':out,'setup_cost':round(shared_cost,2),'total_cost':round(cost,2),
   'total_price':round(total,2),'markup_pct':s['markup_pct'],
@@ -668,6 +684,47 @@ def batch_compute(lines,s):
   'warnings':['Contour placement is an estimating nest, not a validated production/CAM nest. Material charged by full sheets allocated by part area.',
    'Gas flow defaults to zero until measured; set m3/hour for each profile.',
    'Machine and labour rates must be configured to avoid double-counting.']}
+
+@app.post('/api/dxf/validate-batch')
+def validate_batch_dxf():
+ try:
+  d=request.get_json(force=True)
+  rows=d.get('lines',[])
+  if not isinstance(rows,list) or len(rows)>150:raise ValueError('Too many files')
+  result=[]
+  for line in rows:
+   fid=str(line.get('file_id',''))
+   name=str(line.get('filename','unnamed.dxf'))[:200]
+   entry={'file_id':fid,'filename':name,'ok':False,'issues':[]}
+   try:
+    if not re.fullmatch('[0-9a-f]{32}',fid):raise ValueError('Invalid file reference')
+    path=UPLOADS/(fid+'.dxf')
+    if not path.is_file():raise ValueError('DXF missing; reimport the RFQ')
+    g=geometry(path)
+    entry['issues']=[w for w in g['warnings'] if not w.startswith('Pierces are estimated')]
+    # A partially open outline must not be priced from only its closed islands.
+    if g['open_endpoints']:entry['issues'].insert(0,f"Open or dangling geometry: {g['open_endpoints']} unmatched endpoints")
+    try:solid_outline(path)
+    except Exception as ex:entry['issues'].insert(0,str(ex))
+    entry['issues']=list(dict.fromkeys(entry['issues']))
+    entry['ok']=not any('open' in w.lower() or 'no closed' in w.lower() or 'nesting requires' in w.lower() or 'unsupported' in w.lower() for w in entry['issues'])
+   except Exception as ex:entry['issues']=[str(ex)]
+   result.append(entry)
+  return jsonify({'files':result})
+ except Exception as ex:return jsonify({'error':str(ex)}),400
+
+@app.post('/api/dxf/inspect')
+def inspect_dxf():
+ try:
+  d=request.get_json(force=True);fid=str(d.get('file_id',''))
+  if not re.fullmatch('[0-9a-f]{32}',fid):raise ValueError('Invalid DXF reference')
+  path=UPLOADS/(fid+'.dxf')
+  if not path.is_file():raise ValueError('DXF not found. Reimport the file.')
+  g=geometry(path)
+  try:solid_outline(path);g['nesting_status']='Ready for nesting'
+  except Exception as e:g['nesting_status']='Cannot nest: '+str(e)
+  return jsonify(g)
+ except Exception as e:return jsonify({'error':str(e)}),400
 
 @app.post('/api/batch/calculate')
 def batch_calculate():
