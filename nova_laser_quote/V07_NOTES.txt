@@ -1,0 +1,9 @@
+Nova Laser Quote v0.7
+- Per-part sheet utilization in single-part and batch quotations; no longer uses global utilization for costs or estimated sheet count.
+- Expanded material catalog: 5050/5052/6061 aluminum, hot/cold rolled steel, mild steel, 304/316 stainless.
+- New material description form with grade, category, description, density, initial thickness in inches, cost per lb, supplier.
+- Imperial thickness selectors with material-specific gauge labels; internal DXF and machine dimensions remain metric.
+- Add and duplicate thicknesses using inches. Sheet-price entry dimensions displayed and entered in inches.
+- Newly generated cutting profiles are placeholders: speeds, prices and gas flows MUST be checked before quoting.
+- Existing data and saved quotes preserved when copying your existing data folder.
+- No true nesting or PDF supplier price extraction in this release.

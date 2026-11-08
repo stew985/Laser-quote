@@ -1,0 +1,1 @@
+v0.6: dedicated editable materials database, per-thickness CAD/lb, speeds, piercing, assist gas, gas flow, pressure, nozzle, kerf, efficiency, source notes, and reference sheet price records. Backup your data folder before upgrading. Sheet records are reference only; actual nesting is not implemented.

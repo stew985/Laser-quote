@@ -1,0 +1,1 @@
+v0.9: material markup per material type, baseline steel 0.90/lb, aluminum 3.50/lb, stainless 5.00/lb, standard imperial thicknesses through 1.25 inches and gauge options down to 28 ga. On first launch, baseline costs replace existing profile prices; back up your data folder first. Rates are illustrative, not measured cutting parameters.

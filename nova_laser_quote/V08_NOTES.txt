@@ -1,0 +1,1 @@
+v0.8: Simplified programming to one editable default minutes per unique part design, with a per-line override in batch quotes. Removed contour and cut-length programming formulas and migrated old programming base. Other quoting behaviour unchanged.
