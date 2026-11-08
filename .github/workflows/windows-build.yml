@@ -24,8 +24,7 @@ jobs:
 
       - name: Build Windows executable
         run: |
-          pyinstaller --noconfirm --clean --onedir --name NovaLaserQuote  --collect-all extract_msg launcher.py
-
+          pyinstaller --noconfirm --clean --onedir --name NovaLaserQuote --add-data "nova_laser_quote/templates;templates" --collect-all extract_msg launcher.py
       - name: Package Windows application
         shell: pwsh
         run: |
