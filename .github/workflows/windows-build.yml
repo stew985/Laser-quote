@@ -14,7 +14,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r nova_laser_quote/requirements.txt pyinstaller
       - name: Build executable
-        working-directory: nova_laser_quote
+        working-directory: working-directory: .
         run: pyinstaller --noconfirm --clean --onedir --name NovaLaserQuote --add-data "templates;templates" --collect-all extract_msg launcher.py
       - name: Package Windows app
         shell: pwsh
